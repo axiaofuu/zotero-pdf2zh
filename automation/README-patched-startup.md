@@ -1,8 +1,10 @@
 # 保留本地字体和排版补丁的可选 macOS 启动入口
 
 适用于已有 `server/zotero-pdf2zh-next-venv` 的 macOS + uv 用户。
-个人下游补丁在 [BabelDOC 修复分支](https://github.com/axiaofuu/BabelDOC/tree/fix/preserve-lists-code-v0.6.2)，
-源码提交为 `cf3f176f33b394462d0f94cd7a3ff82b712ee27b`。
+字体修复、排版修复和启动更新保护统一保存在这一个
+[zotero-pdf2zh 个人 Fork 分支](https://github.com/axiaofuu/zotero-pdf2zh/tree/feat/guarded-patched-startup)。
+排版源码及回归检查随仓库放在 `automation/babeldoc-patches/`；字体修复保存在启动管理器中。
+运行和维护均不需要额外的 BabelDOC Fork。
 这不是上游正式版本。NewCM 字体问题的上游修复见 [#622](https://github.com/funstory-ai/BabelDOC/pull/622)。
 
 ## 使用

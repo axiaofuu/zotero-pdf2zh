@@ -4,7 +4,7 @@
     "0.6.2",
     "0.6.4"
   ],
-  "source": "https://github.com/axiaofuu/BabelDOC/tree/fix/preserve-lists-code-v0.6.2",
+  "source": "https://github.com/axiaofuu/zotero-pdf2zh/tree/edf16a765081d7f96ba9525b77c5b6d49cc81d12/automation/babeldoc-patches",
   "files": [
     {
       "payload": "paragraph_finder.py",
@@ -24,5 +24,6 @@
     }
   ],
   "check_sha256": "713047cdb553674f3c5024ed8b1f47c3af530468c7775e27594733fe9d2acc08",
-  "source_commit": "cf3f176f33b394462d0f94cd7a3ff82b712ee27b"
+  "source_commit": "edf16a765081d7f96ba9525b77c5b6d49cc81d12",
+  "upstream_repository": "https://github.com/funstory-ai/BabelDOC"
 }
