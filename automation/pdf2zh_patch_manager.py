@@ -1,4 +1,4 @@
-"""Optional macOS/uv startup guard for the BabelDOC NewCM workaround.
+"""Optional macOS/uv startup guard for reviewed BabelDOC font and layout fixes.
 
 See README-patched-startup.md for scope, backups and update limitations.
 """
@@ -107,6 +107,75 @@ def ensure_patch(env_dir: Path, *, allow_repair: bool) -> None:
     print(f"✅ pdf2zh-next {version('pdf2zh-next')} / BabelDOC {version('BabelDOC')}", flush=True)
 
 
+def ensure_layout_patch(env_dir: Path, *, allow_repair: bool) -> None:
+    """Replay only reviewed source hashes, as one rollback-capable transaction."""
+    bundle = Path(__file__).resolve().parent / "babeldoc-patches"
+    manifest = json.loads((bundle / "manifest.json").read_text())
+    if manifest.get("schema") != 1:
+        raise RuntimeError("排版补丁清单版本未知。")
+    check = bundle / "check_layout.py"
+    if hashlib.sha256(check.read_bytes()).hexdigest() != manifest["check_sha256"]:
+        raise RuntimeError("排版回归检查文件校验失败。")
+    root = Path(distribution("BabelDOC").locate_file("babeldoc/format/pdf/document_il")).resolve()
+    if not root.is_relative_to(env_dir.resolve()):
+        raise RuntimeError("排版补丁目标不属于指定环境。")
+    planned = []
+    for entry in manifest["files"]:
+        target = (root / entry["target"]).resolve()
+        payload = (bundle / entry["payload"]).resolve()
+        if not target.is_relative_to(root) or not payload.is_relative_to(bundle.resolve()):
+            raise RuntimeError("排版补丁路径越界。")
+        candidate = payload.read_bytes()
+        if hashlib.sha256(candidate).hexdigest() != entry["after_sha256"]:
+            raise RuntimeError(f"排版补丁文件校验失败：{payload.name}")
+        compile(candidate, str(target), "exec")
+        original = target.read_bytes() if target.exists() else None
+        digest = hashlib.sha256(original).hexdigest() if original is not None else None
+        if digest == entry["after_sha256"]:
+            continue
+        if digest not in {entry["before_sha256"], *entry.get("replace_sha256", [])}:
+            raise RuntimeError(f"{target.name} 与已验证的官方源码不匹配，拒绝覆盖；更新时将恢复旧环境。")
+        planned.append((target, original, candidate))
+    if planned and not allow_repair:
+        raise RuntimeError("编号列表/代码块补丁尚未应用，请停止已有服务后正常启动。")
+    if planned and listening():
+        raise RuntimeError("服务正在运行，不能修改排版引擎；请先停止服务。")
+    written = []
+    try:
+        for target, original, candidate in planned:
+            if original is not None:
+                digest = hashlib.sha256(original).hexdigest()[:12]
+                backup = target.with_name(f"{target.name}.before-layout-{digest}")
+                if not backup.exists():
+                    shutil.copy2(target, backup)
+            written.append((target, original))
+            atomic_write(target, candidate)
+        subprocess.run([str(env_dir / "bin/python"), "-I", str(check)], check=True, timeout=60)
+    except BaseException:
+        for target, original in reversed(written):
+            if original is None:
+                target.unlink(missing_ok=True)
+            else:
+                atomic_write(target, original)
+        raise
+    print("✅ 编号列表、代码块、单词拼接检查通过；原有 NewCM 修复保留。", flush=True)
+
+
+def atomic_write(path: Path, content: bytes) -> None:
+    with tempfile.NamedTemporaryFile(dir=path.parent, delete=False) as file:
+        temp = Path(file.name)
+        file.write(content)
+    try:
+        temp.chmod(path.stat().st_mode if path.exists() else 0o644)
+        os.replace(temp, path)
+        # Invalidate same-second, same-size bytecode after repair/rollback.
+        cache = path.parent / "__pycache__"
+        for pyc in cache.glob(path.stem + ".*.pyc"):
+            pyc.unlink(missing_ok=True)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def uv_binary() -> str:
     found = shutil.which("uv")
     if not found:
@@ -185,6 +254,7 @@ def listening() -> bool:
 
 def verify_runtime(env_dir: Path) -> None:
     ensure_patch(env_dir, allow_repair=True)
+    ensure_layout_patch(env_dir, allow_repair=True)
     subprocess.run([uv_binary(), "pip", "check", "--python", str(env_dir / "bin/python")], check=True)
     subprocess.run([
         str(env_dir / "bin/python"), "-I", "-c",
@@ -233,7 +303,7 @@ def update_runtime(server_dir: Path, env_dir: Path) -> bool:
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             raise
         return False
-    print("✅ 依赖已更新，字体补丁及运行检查通过。", flush=True)
+    print("✅ 依赖已更新，字体、列表、代码块补丁及运行检查通过。", flush=True)
     print(f"上一个环境的备份保留在：{backup}", flush=True)
     return True
 
@@ -249,6 +319,8 @@ def main() -> int:
     server_dir = args.server_dir.resolve()
     env_dir = server_dir / "zotero-pdf2zh-next-venv"
     if args.verify:
+        if listening():
+            raise RuntimeError("请先停止已有服务再执行修复验证。")
         verify_runtime(env_dir)
         return 0
     special_mode = args.check_only or args.check_updates_only
@@ -261,12 +333,13 @@ def main() -> int:
             print("ℹ️ 已有此启动器启动的服务或更新流程，请使用现有窗口。")
             return 3
         os.set_inheritable(lock.fileno(), True)
-    ensure_patch(env_dir, allow_repair=not special_mode)
-    if args.check_only:
-        return 0
     if not special_mode and listening():
         print("ℹ️ 8890 端口已有服务。请沿用现有服务，或关闭后重新运行本脚本。")
         return 3
+    ensure_patch(env_dir, allow_repair=not special_mode)
+    ensure_layout_patch(env_dir, allow_repair=not special_mode)
+    if args.check_only:
+        return 0
     available = check_runtime_updates(server_dir)
     if args.check_updates_only:
         return 0

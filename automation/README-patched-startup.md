@@ -1,55 +1,65 @@
-# 保留 NewCM 补丁的可选 macOS 启动入口
+# 保留本地字体和排版补丁的可选 macOS 启动入口
 
-适用于已经安装 `server/zotero-pdf2zh-next-venv` 的 macOS + uv 用户。
-当 BabelDOC 将 NewCM 正文字体误判为公式时，PDF 可能翻译后仍保留英文。
-上游修复见 [BabelDOC #622](https://github.com/funstory-ai/BabelDOC/pull/622)，
-问题背景见 [#613](https://github.com/funstory-ai/BabelDOC/issues/613)。
-此入口在等待上游修复期间保留本地 workaround，现有默认启动方式不变。
+适用于已有 `server/zotero-pdf2zh-next-venv` 的 macOS + uv 用户。
+个人下游补丁在 [BabelDOC 修复分支](https://github.com/axiaofuu/BabelDOC/tree/fix/preserve-lists-code-v0.6.2)，
+源码提交为 `4ab2d03e3862803c41c976316adc38145cf17912`。
+这不是上游正式版本。NewCM 字体问题的上游修复见 [#622](https://github.com/funstory-ai/BabelDOC/pull/622)。
 
 ## 使用
 
-在项目根目录执行 `zsh automation/start_patched_server.command`，或给该文件执行权限后双击。
-脚本与 `pdf2zh_patch_manager.py` 应位于同一目录，独立于 Server 源码更新目录。
-默认使用相邻的 `../server`；如需使用另一份已有 Server，可设置 `PDF2ZH_SERVER_DIR`。
-保持终端开启，在 Zotero 内选择 `pdf2zh_next` 发起翻译，插件会处理译文附件导入。
+在项目根目录执行：
+
+```sh
+zsh automation/start_patched_server.command
+```
+
+完整保留启动脚本、`pdf2zh_patch_manager.py` 和 `babeldoc-patches/`。
+它们独立于 Server 源码更新目录。默认使用相邻 `../server`；
+可用 `PDF2ZH_SERVER_DIR` 指向另一份已有 Server。
+保持终端开启，在 Zotero 内选择 `pdf2zh_next` 发起翻译，插件会导入译文附件。
 服务只监听 `127.0.0.1:8890`。
 
-## 启动与更新
+## 补丁行为
 
-1. 检查实际环境中的字体分类，覆盖 NewCM 正文、数学字体、子集前缀与自定义公式规则。
-   分类已正确时不修改；仅对已知的两行错误做备份并修复。
-   未知结构或检查失败时停止，交由用户检查。
-2. 检查 PyPI 上 pdf2zh-next / BabelDOC 的兼容正式版本，遵循 Server 配置与当前
-   pdf2zh-next 的 BabelDOC 依赖约束。排除预发布、撤回和不支持当前 Python 的版本。
-   网络失败时打印原因并沿用当前环境。源码、Fork 或直接 URL 安装来源不会被自动替换。
-3. 有更新时询问是否安装，默认不更新；无交互输入时也保留当前环境。
-   确认后先备份完整虚拟环境，再更新依赖、重放补丁，检查依赖一致性与翻译引擎导入。
-   安装或检查失败则恢复旧环境到原路径，保留失败环境用于排查。
-4. 通过 Server 原有流程检查官方 Server 更新，仍由用户确认安装。
-   Server 更新完成退出后，重新运行本入口。启动时设置 `skip_install=True`，
-   避免 Server 再次更新刚刚检查过的翻译依赖。
+- NewCM 普通正文字体可翻译，数学字体保持保护；已正确的上游实现无需重复修改。
+- 连续、左边界对齐的编号/字母列表拆成独立条目；续行归原条目，编号使用原坐标，正文保留悬挂缩进。
+- 多行、至少 95% 等宽字符且多行含代码语法的代码段保留原字符、基线、缩进、空行和颜色，跳过翻译与重排。
+- 对布局边界拆出的极短单词尾部，只有字体、字号、基线、XObject 和字符边界连续时才重新拼接。
 
-上游将来修复字体分类后，行为检查通过即使用上游实现，不重复打补丁。
-此入口检查发布版本，不自动同步 Git 分支。GitHub Fork 仍需自行 Sync fork 或合并 upstream。
+普通正文软换行继续重排，带行内代码的解释文字仍可翻译。当前结构补丁跳过 OCR workaround 模式，
+不覆盖所有列表/代码样式；代码注释保留原文。旧译文需重新翻译才会变化。
 
-## 备份与限制
+## 启动和更新
 
-依赖更新前的备份及失败环境位于项目根目录 `.pdf2zh-local/`，保留不自动删除；
-确认无需回退且服务已停止后可手动清理。macOS 优先使用文件系统克隆，无法克隆时完整复制，
-因此需要足够磁盘空间。字体文件旁另保存带内容哈希的原文件备份。
+1. 启动前检查重复运行和 8890 端口。服务运行中不会修改引擎文件。
+2. 检查字体和排版补丁。排版目标必须匹配清单中的已审核源码哈希或已知旧补丁哈希；
+   未知变化拒绝覆盖。补丁文件本身也核对哈希。修改前备份，文件组写入或行为检查失败会恢复原文件。
+3. 检查 PyPI 的兼容正式发布版，遵循 Server 配置、当前 pdf2zh-next 对 BabelDOC 的约束和 Python 版本。
+   排除预发布、撤回版本。网络失败时继续当前环境；源码/Fork/直接 URL 安装不会被官方包替换。
+4. 有更新时询问是否安装，默认不更新。确认后备份完整环境，再升级、重放全部补丁，
+   运行 7 项排版回归、字体分类、依赖一致性和引擎导入检查。失败则恢复原环境及其补丁。
+5. 通过 Server 原流程检查官方 Server 更新。更新成功退出后重新运行同一脚本。
+   `skip_install=True` 防止 Server 随后自行更新刚检查过的翻译环境。
 
-锁与端口检查阻止重复启动及正在运行时通过此入口升级。其他入口或手动安装不经过本回滚流程，
-更新时应关闭其他 Server。回滚覆盖翻译虚拟环境，不覆盖 Server 源码更新。
-强制终止进程、断电或磁盘故障仍可能需要从 `.pdf2zh-local/` 手动恢复环境到原路径。
-字体检查与引擎导入不能证明未来每个版本都能正确翻译每份 PDF；更新后仍应检查译文。
+运行环境保持为官方发布包加本地审核补丁，因此仍能发现官方发布更新。
+Fork 保存修复源码；它不会自动合并上游，Sync fork 的 main 也不会改动本修复分支。
+官方 0.6.2 与 0.6.4 的段落文件源码相同；完整样例验证使用 0.6.2。
+未来未知源码结构或其他兼容问题会使更新回退，不能保证任意未来版本都可直接套用。
 
-## 检查命令
+## 备份和检查
+
+完整环境备份与失败环境在项目根目录 `.pdf2zh-local/`，保留不自动删除。
+macOS 优先文件系统克隆，失败时完整复制。源码文件旁保存带哈希的修改前备份。
+仅通过此入口安装的依赖更新经过上述回滚；手动重装、其他入口、Server 源码更新不在该事务内。
+强制终止、断电或磁盘故障仍可能需要手动恢复环境。
 
 ```sh
 zsh automation/start_patched_server.command --check-only
 zsh automation/start_patched_server.command --check-updates-only
-PYTHONPATH=server python -m unittest discover -s server/tests -p test_local_patch_manager.py
+zsh automation/start_patched_server.command --verify
+PYTHONPATH=server python -m unittest discover -s server/tests
 ```
 
-前两条不修改字体文件，不启动服务；第二条会联网检查发布版本。
-测试使用临时环境与模拟安装失败，无需 API key，不发送文档。
+前两项不修改补丁目标、不启动服务；第二项联网检查发布版本。
+`--verify` 在服务停止时修复并验证环境。回归测试模拟安装和写入失败，不需要 API Key、不发送文档。
+`babeldoc-patches/LICENSE.BabelDOC` 保留所附 BabelDOC 派生文件的许可。

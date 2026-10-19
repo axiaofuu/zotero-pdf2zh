@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "upstream_versions": [
+    "0.6.2",
+    "0.6.4"
+  ],
+  "source": "https://github.com/axiaofuu/BabelDOC/tree/fix/preserve-lists-code-v0.6.2",
+  "files": [
+    {
+      "payload": "paragraph_finder.py",
+      "target": "midend/paragraph_finder.py",
+      "before_sha256": "b67ccaf160f8963a60bffb0661dbc1269ab5efd0b699076ea9ef8c5a7e69a1db",
+      "after_sha256": "c7748bb57e7095df0030ec3969742a258999373c06eb9ed638c01aee82a4958a"
+    },
+    {
+      "payload": "structure_helper.py",
+      "target": "utils/structure_helper.py",
+      "before_sha256": null,
+      "after_sha256": "91f435d8e36eeb9958ebf053e72623c3af7315f28c3f1839228f241af4591fc8",
+      "replace_sha256": [
+        "4540f34e01262240cda166b0af16efaf043303a08edc52781353e6864def5c77"
+      ]
+    }
+  ],
+  "check_sha256": "08e6f1c9599cae88a87146c9ed8ab119a0e7a21fef2341a66d625320db30e640",
+  "source_commit": "4ab2d03e3862803c41c976316adc38145cf17912"
+}

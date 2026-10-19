@@ -15,6 +15,11 @@ if [[ ! -f "$SCRIPT_DIR/pdf2zh_patch_manager.py" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$SCRIPT_DIR/babeldoc-patches/manifest.json" ]]; then
+  print -u2 "缺少 babeldoc-patches 补丁目录，请完整保留 automation 目录。"
+  exit 1
+fi
+
 unset PYTHONHOME PYTHONPATH
 export PYTHONNOUSERSITE=1
 export PYTHONUNBUFFERED=1
