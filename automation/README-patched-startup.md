@@ -2,7 +2,7 @@
 
 适用于已有 `server/zotero-pdf2zh-next-venv` 的 macOS + uv 用户。
 个人下游补丁在 [BabelDOC 修复分支](https://github.com/axiaofuu/BabelDOC/tree/fix/preserve-lists-code-v0.6.2)，
-源码提交为 `4ab2d03e3862803c41c976316adc38145cf17912`。
+源码提交为 `cf3f176f33b394462d0f94cd7a3ff82b712ee27b`。
 这不是上游正式版本。NewCM 字体问题的上游修复见 [#622](https://github.com/funstory-ai/BabelDOC/pull/622)。
 
 ## 使用

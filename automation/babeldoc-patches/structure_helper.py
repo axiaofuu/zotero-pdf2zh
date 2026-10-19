@@ -14,7 +14,10 @@ _MARKER = re.compile(
     r"^(?P<label>\d{1,3}[.)]|\(\d{1,3}\)|\([a-zA-Z]\)|[a-zA-Z][.)])\s+(?P<body>\S)"
 )
 _CODE = re.compile(
-    r"(?:\b(?:def|class|for|while|if|elif|else|import|from|return|with|try|except)\b|[=(){}\[\];]|->)"
+    r"^\s*(?:(?:def|class)\s+\w+|(?:for|while|if|elif|with|except)\s+.+:\s*$"
+    r"|(?:else|try):\s*$|(?:import|from)\s+\w+|return(?:\s|$))"
+    r"|(?<![=<>!])=(?!=)|\b[A-Za-z_]\w*(?:\.\w+)*\("
+    r"|^\s*[\"'][^\"']+[\"']\s*:"
 )
 
 

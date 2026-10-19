@@ -164,9 +164,13 @@ class StructureTests(unittest.TestCase):
             line("with another line", 85, font="code"),
         )
         singleton = paragraph(line("value = 4", font="code"))
-        paras = [prose, mono_prose, singleton]
+        keyword_prose = paragraph(
+            line("if possible, explain this", 100, font="code"),
+            line("for each reader in plain prose", 85, font="code"),
+        )
+        paras = [prose, mono_prose, singleton, keyword_prose]
         self.assertEqual(0, preserve_code_blocks(self.page, paras))
-        self.assertEqual(3, len(paras))
+        self.assertEqual(4, len(paras))
 
 
 if __name__ == "__main__":
