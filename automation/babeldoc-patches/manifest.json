@@ -4,7 +4,7 @@
     "0.6.2",
     "0.6.4"
   ],
-  "source": "https://github.com/axiaofuu/zotero-pdf2zh/tree/edf16a765081d7f96ba9525b77c5b6d49cc81d12/automation/babeldoc-patches",
+  "source": "https://github.com/axiaofuu/zotero-pdf2zh/tree/feat/guarded-patched-startup/automation/babeldoc-patches",
   "files": [
     {
       "payload": "paragraph_finder.py",
@@ -21,9 +21,34 @@
         "4540f34e01262240cda166b0af16efaf043303a08edc52781353e6864def5c77",
         "91f435d8e36eeb9958ebf053e72623c3af7315f28c3f1839228f241af4591fc8"
       ]
+    },
+    {
+      "payload": "il_translator.py",
+      "target": "midend/il_translator.py",
+      "before_sha256": "0b855f6d26e01c0b75a89f0e28f086dfc43d7b94c4d0e9dcc0b29bd0345481db",
+      "after_sha256": "1fd82a612fd8a06235d20c4a843750afbc730e180ee6999ed01d5b5b23a4417d"
+    },
+    {
+      "payload": "placeholder_helper.py",
+      "target": "utils/placeholder_helper.py",
+      "before_sha256": null,
+      "after_sha256": "c0d1e967aaacc424227c35ea20b18e474b33215843840a611a5153f6ca04edec",
+      "replace_sha256": [
+        "f3431ab62d78c330289012a1e8a0a084215fa7fb8ebee5e60262035b34d3d19c"
+      ]
     }
   ],
   "check_sha256": "713047cdb553674f3c5024ed8b1f47c3af530468c7775e27594733fe9d2acc08",
-  "source_commit": "edf16a765081d7f96ba9525b77c5b6d49cc81d12",
-  "upstream_repository": "https://github.com/funstory-ai/BabelDOC"
+  "upstream_repository": "https://github.com/funstory-ai/BabelDOC",
+  "checks": [
+    {
+      "payload": "check_layout.py",
+      "sha256": "713047cdb553674f3c5024ed8b1f47c3af530468c7775e27594733fe9d2acc08"
+    },
+    {
+      "payload": "check_placeholders.py",
+      "sha256": "a23a829f01c78f5eb2fe4e27e47a0ace2eb95dd7d804f875b5ed203a036a82d3"
+    }
+  ],
+  "source_ref": "feat/guarded-patched-startup"
 }

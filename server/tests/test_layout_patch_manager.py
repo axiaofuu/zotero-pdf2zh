@@ -30,6 +30,10 @@ class LayoutManagerTests(unittest.TestCase):
         payload=payload.replace('        if not self.translation_config.ocr_workaround:\n            split_numbered_lists(page, paragraphs, self.update_paragraph_data)\n            for paragraph in paragraphs:\n                if not paragraph.debug_id:\n                    paragraph.debug_id = generate_base58_id()\n\n','')
         self.target=self.root/'midend/paragraph_finder.py';self.target.write_text(payload)
         self.original=self.target.read_bytes()
+        translator=(BUNDLE/"il_translator.py").read_text().replace("from babeldoc.format.pdf.document_il.utils.placeholder_helper import repair_style_placeholders\n", "").replace("        translated_text = repair_style_placeholders(translated_text, translate_input)\n", "")
+        self.translator_target=self.root/"midend/il_translator.py"
+        self.translator_target.write_text(translator)
+        self.original_translator=self.translator_target.read_bytes()
         class Dist:
             def locate_file(_,name):return self.root
         self.dist=patch.object(m,'distribution',return_value=Dist());self.dist.start()
@@ -44,7 +48,7 @@ class LayoutManagerTests(unittest.TestCase):
         before=self.target.stat().st_mtime_ns
         m.ensure_layout_patch(self.env,allow_repair=False)
         self.assertEqual(before,self.target.stat().st_mtime_ns)
-        self.assertEqual(1,len(list(self.target.parent.glob('*.before-layout-*'))))
+        self.assertEqual(1,len(list(self.target.parent.glob(self.target.name+'.before-layout-*'))))
     def test_unknown_upstream_source_is_left_untouched(self):
         self.target.write_bytes(self.original+b'\n# upstream change\n')
         before=self.target.read_bytes()
@@ -56,6 +60,36 @@ class LayoutManagerTests(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):m.ensure_layout_patch(self.env,allow_repair=True)
         self.assertEqual(self.original,self.target.read_bytes())
         self.assertFalse((self.root/'utils/structure_helper.py').exists())
+        self.assertEqual(self.original_translator, self.translator_target.read_bytes())
+        self.assertFalse((self.root/'utils/placeholder_helper.py').exists())
+    def test_failed_placeholder_checks_restore_all_four_targets(self):
+        with patch.object(m.subprocess, 'run', side_effect=[subprocess.CompletedProcess([],0), subprocess.CalledProcessError(1,['check_placeholders'])]):
+            with self.assertRaises(subprocess.CalledProcessError):
+                m.ensure_layout_patch(self.env,allow_repair=True)
+        self.assertEqual(self.original,self.target.read_bytes())
+        self.assertEqual(self.original_translator,self.translator_target.read_bytes())
+        self.assertFalse((self.root/'utils/structure_helper.py').exists())
+        self.assertFalse((self.root/'utils/placeholder_helper.py').exists())
+
+    def test_unknown_translator_source_blocks_entire_transaction(self):
+        changed = self.original_translator + b'\n# upstream parser changed\n'
+        self.translator_target.write_bytes(changed)
+        with self.assertRaises(RuntimeError):
+            m.ensure_layout_patch(self.env, allow_repair=True)
+        self.assertEqual(self.original, self.target.read_bytes())
+        self.assertEqual(changed, self.translator_target.read_bytes())
+        self.assertFalse((self.root/'utils/structure_helper.py').exists())
+
+    def test_corrupt_placeholder_regression_is_rejected_before_writes(self):
+        local = self.env / 'checks-copy'
+        shutil.copytree(BUNDLE, local / 'babeldoc-patches')
+        (local / 'babeldoc-patches/check_placeholders.py').write_text('# damaged')
+        with patch.object(m, '__file__', str(local / 'manager.py')):
+            with self.assertRaises(RuntimeError):
+                m.ensure_layout_patch(self.env, allow_repair=True)
+        self.assertEqual(self.original, self.target.read_bytes())
+        self.assertEqual(self.original_translator, self.translator_target.read_bytes())
+
     def test_live_server_blocks_changes(self):
         self.port.stop();self.port=patch.object(m,'listening',return_value=True);self.port.start()
         with self.assertRaises(RuntimeError):m.ensure_layout_patch(self.env,allow_repair=True)

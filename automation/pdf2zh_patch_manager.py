@@ -113,9 +113,15 @@ def ensure_layout_patch(env_dir: Path, *, allow_repair: bool) -> None:
     manifest = json.loads((bundle / "manifest.json").read_text())
     if manifest.get("schema") != 1:
         raise RuntimeError("排版补丁清单版本未知。")
-    check = bundle / "check_layout.py"
-    if hashlib.sha256(check.read_bytes()).hexdigest() != manifest["check_sha256"]:
-        raise RuntimeError("排版回归检查文件校验失败。")
+    checks = manifest.get("checks", [{"payload": "check_layout.py", "sha256": manifest["check_sha256"]}])
+    check_paths = []
+    for entry in checks:
+        check = (bundle / entry["payload"]).resolve()
+        if not check.is_relative_to(bundle.resolve()):
+            raise RuntimeError("回归检查路径越界。")
+        if hashlib.sha256(check.read_bytes()).hexdigest() != entry["sha256"]:
+            raise RuntimeError(f"回归检查文件校验失败：{check.name}")
+        check_paths.append(check)
     root = Path(distribution("BabelDOC").locate_file("babeldoc/format/pdf/document_il")).resolve()
     if not root.is_relative_to(env_dir.resolve()):
         raise RuntimeError("排版补丁目标不属于指定环境。")
@@ -137,7 +143,7 @@ def ensure_layout_patch(env_dir: Path, *, allow_repair: bool) -> None:
             raise RuntimeError(f"{target.name} 与已验证的官方源码不匹配，拒绝覆盖；更新时将恢复旧环境。")
         planned.append((target, original, candidate))
     if planned and not allow_repair:
-        raise RuntimeError("编号列表/代码块补丁尚未应用，请停止已有服务后正常启动。")
+        raise RuntimeError("排版/样式标签补丁尚未应用，请停止已有服务后正常启动。")
     if planned and listening():
         raise RuntimeError("服务正在运行，不能修改排版引擎；请先停止服务。")
     written = []
@@ -150,7 +156,8 @@ def ensure_layout_patch(env_dir: Path, *, allow_repair: bool) -> None:
                     shutil.copy2(target, backup)
             written.append((target, original))
             atomic_write(target, candidate)
-        subprocess.run([str(env_dir / "bin/python"), "-I", str(check)], check=True, timeout=60)
+        for check in check_paths:
+            subprocess.run([str(env_dir / "bin/python"), "-I", str(check)], check=True, timeout=60)
     except BaseException:
         for target, original in reversed(written):
             if original is None:
@@ -158,7 +165,7 @@ def ensure_layout_patch(env_dir: Path, *, allow_repair: bool) -> None:
             else:
                 atomic_write(target, original)
         raise
-    print("✅ 编号列表、代码块、单词拼接检查通过；原有 NewCM 修复保留。", flush=True)
+    print("✅ 编号列表、代码块、单词拼接及样式标签检查通过；原有 NewCM 修复保留。", flush=True)
 
 
 def atomic_write(path: Path, content: bytes) -> None:
@@ -303,7 +310,7 @@ def update_runtime(server_dir: Path, env_dir: Path) -> bool:
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             raise
         return False
-    print("✅ 依赖已更新，字体、列表、代码块补丁及运行检查通过。", flush=True)
+    print("✅ 依赖已更新，字体、排版、样式标签补丁及运行检查通过。", flush=True)
     print(f"上一个环境的备份保留在：{backup}", flush=True)
     return True
 
